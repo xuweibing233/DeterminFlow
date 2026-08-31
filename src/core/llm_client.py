@@ -12,12 +12,32 @@ from langchain_core.runnables.config import ensure_config, merge_configs
 from langchain_openai import ChatOpenAI
 from langchain_openai.chat_models import base as openai_base
 from openai import BadRequestError as OpenAIBadRequestError
+from pydantic import ValidationError
 
 import os
 import warnings
 
 logger = logging.getLogger(__name__)
 PROVIDER_BAD_REQUEST_ERRORS = (OpenAIBadRequestError, AnthropicBadRequestError)
+
+
+class LLMEmptyOrMalformedResponse(Exception):
+    """Wraps a LangChain/Provider ``ValidationError`` that fires when an
+    otherwise-successful HTTP response cannot be assembled into a
+    :class:`langchain_core.messages.BaseMessage`.
+
+    The reactive compact loop in :mod:`src.core.graph_builder` consumes this
+    exception to discard the oldest message round and retry, instead of
+    aborting the active sub-session on what is usually a transient upstream
+    truncation or content-filter quirk.
+    """
+
+    def __init__(self, original: BaseException) -> None:
+        super().__init__(
+            f"LLM returned a chunk LangChain could not validate: "
+            f"{type(original).__name__}: {original}"
+        )
+        self.original = original
 
 
 class ModelCredentialNotConfiguredError(ValueError):
@@ -376,6 +396,13 @@ def _wrap_llm_with_retry(llm: BaseChatModel, retry_config: dict) -> BaseChatMode
                 # 400 错误是永久性错误（输入格式非法），重试无意义，直接抛出
                 logger.error(f"LLM astream BadRequestError (400)，不重试")
                 raise
+            except ValidationError as validation_error:
+                # LangChain assembles each chunk into a BaseMessage at the
+                # boundary of astream. When the upstream response carries
+                # ``content=None``, the Pydantic model raises here even though
+                # the HTTP layer succeeded. Surface as a structured exception
+                # so the reactive compact loop can recover.
+                raise LLMEmptyOrMalformedResponse(validation_error) from validation_error
             except Exception as e:
                 last_error = e
                 # Once a chunk reached the consumer, restarting this request
