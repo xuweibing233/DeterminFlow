@@ -13,7 +13,11 @@ type FrontendExtensionLoader = () => Promise<unknown>;
 type FrontendExtensionLoadResult = LoadedFrontendExtensionResult;
 
 const moduleLoaders = import.meta.glob<unknown>(
-  "../../../extensions/*/frontend/index.tsx",
+  // Relative to this file (web/src/extensions/registry.ts): one level up is
+  // web/src, so this matches web/src/extensions/<id>/frontend/index.tsx.
+  // The previous "../../../extensions/..." resolved to <repo-root>/extensions,
+  // which does not exist, so the discovery set was always empty.
+  "../extensions/*/frontend/index.tsx",
   { import: "default" },
 ) as Record<string, FrontendExtensionLoader>;
 
