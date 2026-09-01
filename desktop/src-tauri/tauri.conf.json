@@ -41,9 +41,9 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://downloads.determinflow.com/desktop/stable/latest.json"
+        "https://github.com/xuweibing233/DeterminFlow/releases/latest/download/latest.json"
       ],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRBRkY1NkI2MjQ1NUM1OTkKUldTWnhWVWt0bGIvU21EaysvZ1hQaVVUOEc3VFFISEY5aTBPQlZFdHNURDFSejlSTk1pM1NhL24K"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU0NTQ3RDBFMkY2MjUzNDkKUldSSlUySXZEbjFVNUlwR3FzYmlHRERkRVJpMEZFQlBlbHZDMm8za1V5M1d1YUtpMFZuc0VVT1IK"
     }
   }
 }
