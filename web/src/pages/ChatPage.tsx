@@ -498,7 +498,7 @@ export default function ChatPage() {
   }, []);
 
   return (
-    <div className="relative flex h-[calc(100dvh-3.5rem)]">
+    <div className="relative flex h-[calc(100dvh-3.5rem)] overflow-hidden">
       {/* Token 监控竖向边栏 - 左侧，可折叠 */}
       <div
         className={`shrink-0 flex flex-col transition-all duration-300 ${monitoringCollapsed ? "w-7" : "w-64"}`}
