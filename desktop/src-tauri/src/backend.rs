@@ -14,7 +14,11 @@ use std::os::windows::process::CommandExt;
 
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-const STARTUP_TIMEOUT: Duration = Duration::from_secs(60);
+// Fork baseline: cold starts on Windows routinely take 40-60s (5 PyInstaller
+// processes booting serially, each rescanning the full session catalog, plus
+// Defender scanning of unsigned binaries). 60s was tight enough to fail
+// spuriously; the backend does eventually become ready, so wait longer.
+const STARTUP_TIMEOUT: Duration = Duration::from_secs(180);
 
 pub struct BackendState {
     child: Mutex<Option<Child>>,
