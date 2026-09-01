@@ -109,3 +109,31 @@ def test_astream_provider_bad_request_skips_retry_path() -> None:
             _drive(llm.astream([]))
     finally:
         llm_client_module.PROVIDER_BAD_REQUEST_ERRORS = original
+
+
+def test_convert_dict_to_message_coerces_null_content() -> None:
+    """Monkey Patch 3: a message dict with a non-standard ``role`` and
+    ``content: null`` must not crash ChatMessage validation.
+
+    langchain-openai's fallback branch uses ``_dict.get("content", "")`` which
+    returns ``None`` when the key exists with a null value. The DeterminFlow
+    patch coerces null content to "" before delegating.
+    """
+    from langchain_openai.chat_models import base as openai_base
+
+    # The patch is applied at llm_client import time; openai_base was already
+    # imported here so fetch the patched callable through the module attr.
+    import src.core.llm_client as llm_client_module  # noqa: F401
+
+    patched = openai_base._convert_dict_to_message
+
+    message = patched({"role": "custom_nonstandard_role", "content": None})
+    assert message.content == ""
+
+    # standard roles keep working through the original converter
+    assistant = patched({"role": "assistant", "content": None})
+    assert assistant.content == ""
+
+    # absent content key still defaults to ""
+    default = patched({"role": "custom_nonstandard_role"})
+    assert default.content == ""

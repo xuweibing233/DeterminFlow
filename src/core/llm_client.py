@@ -144,6 +144,33 @@ openai_base._convert_delta_to_message_chunk = _patched_convert_delta_to_message_
 
 
 # ============================================================
+# Monkey Patch 3: 消息解析 - 兼容非标准 role 下的 content=None
+# ============================================================
+
+_original_convert_dict_to_message = openai_base._convert_dict_to_message
+
+
+def _patched_convert_dict_to_message(_dict):
+    """
+    修补版本的消息解析函数，兼容 openai_compatible 中转站的 content=None
+
+    langchain-openai 的 _convert_dict_to_message 对 user/assistant/tool 等
+    标准 role 做了 content None 防护（assistant 分支为 `or ""`），但对未知
+    role 的 fallback 分支使用 `_dict.get("content", "")`——当上游返回
+    "content": null（键存在）时 get 返回 None 而非默认值，ChatMessage 随即
+    在 Pydantic 校验处抛出 "2 validation errors for ChatMessage"。
+    观测到的触发场景：DeepSeek V4 reasoning 响应经中转站返回非标准 role
+    且 content 为 null。此处统一把 null content 归一为空字符串。
+    """
+    if _dict.get("content") is None:
+        _dict = {**_dict, "content": ""}
+    return _original_convert_dict_to_message(_dict)
+
+
+openai_base._convert_dict_to_message = _patched_convert_dict_to_message
+
+
+# ============================================================
 # 应用补丁完成
 # ============================================================
 
