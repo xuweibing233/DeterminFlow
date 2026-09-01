@@ -79,7 +79,7 @@ def test_tauri_bundle_is_a_per_user_nsis_installer() -> None:
     )
     updater = config["plugins"]["updater"]
     assert updater["endpoints"] == [
-        "https://downloads.determinflow.com/desktop/stable/latest.json"
+        "https://github.com/xuweibing233/DeterminFlow/releases/latest/download/latest.json"
     ]
     assert len(updater["pubkey"]) > 100
     assert b"minisign public key" in base64.b64decode(
@@ -205,8 +205,14 @@ def test_desktop_lifecycle_cleans_up_the_backend_before_every_exit() -> None:
     assert "prepare_for_update," in main_source
     assert "updater::check_update_sources," in main_source
     assert "releases/latest/download/latest.json" in updater_source
-    assert "downloads.determinflow.com/desktop/stable/latest.json" in updater_source
-    assert "gitee.com/api/v5/repos/alikon/DeterminFlow/releases/latest" in updater_source
+    assert (
+        "https://github.com/xuweibing233/DeterminFlow/releases/latest/download/latest.json"
+        in updater_source
+    )
+    assert (
+        "https://api.github.com/repos/xuweibing233/DeterminFlow/releases/latest"
+        in updater_source
+    )
     assert "join3(r2, github, gitee)" in updater_source
     assert "primary: UpdateSource::Gitee" in updater_source
     assert "fallback: Some(UpdateSource::Github)" in updater_source

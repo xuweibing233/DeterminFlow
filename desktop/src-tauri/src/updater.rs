@@ -7,11 +7,17 @@ use tauri::{Manager, ResourceId, Runtime, Webview};
 use tauri_plugin_updater::{Update, UpdaterExt};
 use url::Url;
 
-const R2_UPDATE_ENDPOINT: &str = "https://downloads.determinflow.com/desktop/stable/latest.json";
+// Fork (xuweibing233) secondary-development baseline: all three update channels
+// resolve to this fork's GitHub releases. The R2/Gitee slots are kept for the
+// original three-source selection logic but point at the fork's channel;
+// GiteeRelease's asset parsing (assets[].name + browser_download_url) is
+// shape-compatible with the GitHub releases API.
+const R2_UPDATE_ENDPOINT: &str =
+    "https://github.com/xuweibing233/DeterminFlow/releases/latest/download/latest.json";
 const GITHUB_UPDATE_ENDPOINT: &str =
-    "https://github.com/alikon-art/DeterminFlow/releases/latest/download/latest.json";
+    "https://github.com/xuweibing233/DeterminFlow/releases/latest/download/latest.json";
 const GITEE_LATEST_RELEASE_API: &str =
-    "https://gitee.com/api/v5/repos/alikon/DeterminFlow/releases/latest";
+    "https://api.github.com/repos/xuweibing233/DeterminFlow/releases/latest";
 const UPDATE_TIMEOUT: Duration = Duration::from_secs(15);
 
 #[derive(Deserialize)]
