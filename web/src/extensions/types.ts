@@ -8,6 +8,9 @@ export interface ExtensionPage {
   label: string;
   icon: LucideIcon;
   activeClass: string;
+  /** Optional core tab id; when set, the page's nav tab is inserted directly
+   *  after that tab instead of being appended to the end of the tab bar. */
+  navAfter?: string;
   component: ComponentType | LazyExoticComponent<ComponentType>;
 }
 

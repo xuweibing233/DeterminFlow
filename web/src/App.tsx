@@ -110,15 +110,36 @@ function App() {
   const showSystemPromptTab = useNavigationSettings();
   const [requestedTab, setRequestedTab] = useUrlParam("tab");
   const extensionPages = useMemo(() => extensions.flatMap((extension) => extension.pages || []), [extensions]);
-  const tabs = useMemo<TabConfig[]>(() => [
-    ...CORE_TAB_CONFIG.filter((tab) => tab.value !== "system-prompt" || showSystemPromptTab),
-    ...extensionPages.map((page) => ({
+  const tabs = useMemo<TabConfig[]>(() => {
+    const coreTabs = CORE_TAB_CONFIG.filter((tab) => tab.value !== "system-prompt" || showSystemPromptTab);
+    const extensionTabs = extensionPages.map((page) => ({
       value: page.id,
       icon: page.icon,
       label: page.label,
       activeClass: page.activeClass,
-    })),
-  ], [extensionPages, showSystemPromptTab]);
+      navAfter: page.navAfter,
+    }));
+    // Pages declaring navAfter are inserted directly after their target core
+    // tab; everything else keeps the legacy append-to-end behavior.
+    const positioned = new Map<string, typeof extensionTabs>();
+    const appended: typeof extensionTabs = [];
+    for (const tab of extensionTabs) {
+      if (tab.navAfter && coreTabs.some((core) => core.value === tab.navAfter)) {
+        const bucket = positioned.get(tab.navAfter) ?? [];
+        bucket.push(tab);
+        positioned.set(tab.navAfter, bucket);
+      } else {
+        appended.push(tab);
+      }
+    }
+    const result: TabConfig[] = [];
+    for (const core of coreTabs) {
+      result.push(core);
+      result.push(...(positioned.get(core.value) ?? []));
+    }
+    result.push(...appended);
+    return result;
+  }, [extensionPages, showSystemPromptTab]);
   const activeTab = tabs.some((tab) => tab.value === requestedTab)
     ? requestedTab!
     : "chat";
