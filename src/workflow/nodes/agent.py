@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import time
 
 from src.config import WORKFLOW_NODE_TIMEOUT_SECONDS
@@ -802,14 +803,28 @@ class AgentNode(BaseNodePlugin):
         return getter(session_id) if callable(getter) else None
 
     @staticmethod
-    def _get_latest_ai_message(sm, session_id: str) -> str:
+    def _strip_inline_reasoning(text: str) -> str:
+        """剥离模型内联在正文里的 <think>...</think> 推理块。
+
+        DeepSeek 系把推理放在独立的 reasoning_content 字段，但 MiniMax M 系列
+        等模型把思考过程以 <think> 标签内联在 content 开头。工作流输出契约
+        （纯 JSON、章节正文等）只应包含净载荷。
+        """
+        if "<think>" not in text:
+            return text
+        return re.sub(r"^\s*<think>.*?</think>\s*", "", text, count=1, flags=re.DOTALL)
+
+    @classmethod
+    def _get_latest_ai_message(cls, sm, session_id: str) -> str:
         """读取最新 assistant 消息；不得用更早的非空消息替代空输出。"""
         session = AgentNode._resolve_session(sm, session_id)
         if not session:
             return ""
         for msg in reversed(session.record):
             if msg.get("type") == "assistant":
-                return message_content_text(msg.get("content"))
+                return cls._strip_inline_reasoning(
+                    message_content_text(msg.get("content"))
+                )
         return ""
 
     @staticmethod
