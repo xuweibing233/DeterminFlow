@@ -814,18 +814,49 @@ class AgentNode(BaseNodePlugin):
             return text
         return re.sub(r"^\s*<think>.*?</think>\s*", "", text, count=1, flags=re.DOTALL)
 
+    # JSON 输出节点场景下，部分模型（MiniMax M 系实测）在产出净载荷后还会追加
+    # 一条纯寒暄的 assistant 收尾消息（如「任务已完成，JSON 已输出」）。这类
+    # 消息没有载荷价值，且会让「取最后一条 assistant」拿到空载荷导致校验失败。
+    _CURTAIN_CALL_RE = re.compile(
+        r"^[\s\S]{0,40}(已完成|已输出|已保存|任务完成|完成。|done)[\s\S]{0,80}$",
+        re.IGNORECASE,
+    )
+
     @classmethod
     def _get_latest_ai_message(cls, sm, session_id: str) -> str:
-        """读取最新 assistant 消息；不得用更早的非空消息替代空输出。"""
+        """读取最新 assistant 消息；不得用更早的非空消息替代空输出。
+
+        短寒暄收尾消息（≤120 字符且含「已完成/已输出」类字样）会被跳过，
+        继续向前找真正的载荷消息；只有当它是唯一 assistant 消息时才返回它。
+        空输出（含剥掉 think 后为空的消息）严格按上游契约立即返回空串，
+        绝不回退到更早的消息。
+        """
         session = AgentNode._resolve_session(sm, session_id)
         if not session:
             return ""
+        fallback: str | None = None
+        saw_assistant = False
         for msg in reversed(session.record):
-            if msg.get("type") == "assistant":
-                return cls._strip_inline_reasoning(
-                    message_content_text(msg.get("content"))
-                )
-        return ""
+            if msg.get("type") != "assistant":
+                continue
+            saw_assistant = True
+            text = cls._strip_inline_reasoning(message_content_text(msg.get("content")))
+            if not text.strip():
+                # 最新消息为空 → 按契约返回空，禁止回退
+                return "" if fallback is None else fallback
+            stripped_len = len(text.strip())
+            is_curtain = (
+                stripped_len <= 120
+                and bool(cls._CURTAIN_CALL_RE.match(text.strip()))
+            )
+            if is_curtain:
+                if fallback is None:
+                    fallback = text
+                continue
+            return text
+        if not saw_assistant:
+            return ""
+        return fallback or ""
 
     @staticmethod
     def _get_session_token_usage(sm, session_id: str) -> dict | None:
