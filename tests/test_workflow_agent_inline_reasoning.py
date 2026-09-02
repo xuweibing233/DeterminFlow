@@ -79,6 +79,26 @@ def test_curtain_call_alone_is_returned(monkeypatch):
     assert AgentNode._get_latest_ai_message(None, "x") == "任务已完成。"
 
 
+def test_long_curtain_call_with_change_summary_is_skipped(monkeypatch):
+    """第 7 次实测：寒暄可达 471+ 字符（附带变更摘要），不限长度一律按开头锚定。"""
+    curtain = "任务已完成。" + "第33章长线状态已更新，核心变化：**李白**：旧地之约兑现……" * 20
+    assert len(curtain) > 400  # 确保远超旧的 120 上限
+    record = [
+        {"type": "assistant", "content": '{"character_states": []}'},
+        {"type": "assistant", "content": curtain},
+    ]
+    _patch_resolve(monkeypatch, record)
+    assert AgentNode._get_latest_ai_message(None, "x") == '{"character_states": []}'
+
+
+def test_prose_with_done_keyword_mid_sentence_is_kept(monkeypatch):
+    """关键词不在开头（前导 >12 字符）的正文不是寒暄，不得跳过。"""
+    prose = "李白在关墙下完成了旧地之约，雪落无声。" + "正文。" * 100
+    record = [{"type": "assistant", "content": prose}]
+    _patch_resolve(monkeypatch, record)
+    assert AgentNode._get_latest_ai_message(None, "x") == prose
+
+
 def test_prose_output_never_treated_as_curtain_call(monkeypatch):
     """正常长正文不会被寒暄规则误伤。"""
     prose = "第一章 雪崩临界\n\n" + "正文内容。" * 200
